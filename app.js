@@ -20,12 +20,11 @@ mongoose.Promise = global.Promise;
 let db = mongoose.connection;
 
 let UserSchema = new Schema({
-    id: {type: String, required: true, max: 100},
+    id: {type: String, required: true, max: 30},
     value: {type: Number, required: true},
     stage: {type: Number, required: true},
     isFinished: {type: Boolean, required: true}
 });
-
 let User = mongoose.model('User', UserSchema)  
 
 let phrase = "Your current stage is ";
@@ -37,11 +36,6 @@ bot.use(session.middleware())
 
 bot.on((ctx) => {
 
-  botBody(ctx)
-
-});
-
-async function botBody(ctx) {
   // stage = number of current question
   let stage = 0;
 
@@ -60,45 +54,26 @@ async function botBody(ctx) {
   console.log(' ')
   console.log('_________________NEW MESSAGE_________________')
   console.log(' ')
-  console.log('before search', curValue, stage, isFinished)
+  searchInDB(curUser, curValue, stage, isFinished, ctx)
 
-  let id = curUser;
+  // countAndSave(curUser, curValue, stage, isFinished, ctx);
 
-  await User.findOne({'id': curUser}, function (err, user) {
-    if (err) {
-      if(err.code == 11000) {
-        return console.log('null here', null);
-      }
-      else {
-        return console.log('error', null);
-      }
-    }
-    if (!user) {
-      let user = new User(
-        {
-          id: curUser,
-          value: 0,
-          stage: 0,
-          isFinished: false
-        }
-      );
-      user.save(function (err) {
-        if (err) {
-          return next(err);
-        }
-        console.log('saved if no user found')
-      });
-    } else {
-      // console.log(user)
-      curValue = user.value;
-      stage = user.stage;
-      isFinished = user.isFinished;
-      console.log('searchInDB', curValue, stage, isFinished)
-    }      
-  });
+});
 
-  console.log('after search', curValue, stage, isFinished)
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: false}));
 
+app.post('/', bot.webhookCallback);
+
+app.listen(80);
+
+// mongoose
+
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
+function countAndSave(curUser, curValue, stage, isFinished, ctx) {
+  console.log('countAndSave start')
+  console.log(curUser, curValue, stage, isFinished)
   // vk bug with not dissapearing btns fix on hello-stage
   if (stage) {
     var answVal = Number(ctx.message.payload) ? Number(ctx.message.payload) : 0;
@@ -108,43 +83,6 @@ async function botBody(ctx) {
   if (isFinished) {
     ctx.reply('Your number of points is ' + curValue);
     isFinished = false;
-    await User.findOne({'id': id}, function (err, user) {
-      if (err) {
-        if(err.code == 11000) {
-          return console.log('null here', null);
-        }
-        else {
-          return console.log('error', null);
-        }
-      }
-      if (!user) {
-        let user = new User(
-          {
-            id: id,
-            value: curValue,
-            stage: stage,
-            isFinished: isFinished
-          }
-        );
-        user.save(function (err) {
-          if (err) {
-            return next(err);
-          }
-          console.log('saved existed user')
-        });
-      } else {
-        console.log('saveToDB', curValue, stage, isFinished)
-        user.value = curValue;
-        user.stage = stage;
-        user.isFinished = isFinished;
-        user.save(function (err) {
-            if(err) {
-                console.error('ERROR!', err);
-            }
-        });
-        // console.log(user)
-      }      
-    }); 
     return false;
   }
 
@@ -156,43 +94,7 @@ async function botBody(ctx) {
     ])
     .oneTime());
     isFinished = true;
-    await User.findOne({'id': id}, function (err, user) {
-      if (err) {
-        if(err.code == 11000) {
-          return console.log('null here', null);
-        }
-        else {
-          return console.log('error', null);
-        }
-      }
-      if (!user) {
-        let user = new User(
-          {
-            id: id,
-            value: curValue,
-            stage: stage,
-            isFinished: isFinished
-          }
-        );
-        user.save(function (err) {
-          if (err) {
-            return next(err);
-          }
-          console.log('saved existed user')
-        });
-      } else {
-        console.log('saveToDB', curValue, stage, isFinished)
-        user.value = curValue;
-        user.stage = stage;
-        user.isFinished = isFinished;
-        user.save(function (err) {
-            if(err) {
-                console.error('ERROR!', err);
-            }
-        });
-        // console.log(user)
-      }      
-    }); 
+    saveToDB(curUser, curValue, stage, isFinished)
     return false;
   }
   // current question object
@@ -210,7 +112,13 @@ async function botBody(ctx) {
 
   stage++;
 
-  await User.findOne({'id': id}, function (err, user) {
+  saveToDB(curUser, curValue, stage, isFinished)
+}
+
+function searchInDB(id, value, stage, isFinished, ctx) {
+
+  // try {
+  let userec = User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
         return console.log('null here', null);
@@ -223,48 +131,40 @@ async function botBody(ctx) {
       let user = new User(
         {
           id: id,
-          value: curValue,
-          stage: stage,
-          isFinished: isFinished
+          value: 0,
+          stage: 0,
+          isFinished: false
         }
       );
       user.save(function (err) {
         if (err) {
           return next(err);
         }
-        console.log('saved existed user')
+        console.log('saved if no user found')
       });
     } else {
-      console.log('saveToDB', curValue, stage, isFinished)
-      user.value = curValue;
-      user.stage = stage;
-      user.isFinished = isFinished;
-      user.save(function (err) {
-          if(err) {
-              console.error('ERROR!', err);
-          }
-      });
-      // console.log(user)
+      console.log(user)
+      curValue = user.value;
+      stage = user.stage;
+      isFinished = user.isFinished;
+      console.log('searchInDB', curValue, stage, isFinished)
     }      
   });
-}
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: false}));
+  userec.then(function () {
+    countAndSave(id, curValue, stage, isFinished, ctx);
+  });
 
-app.post('/', bot.webhookCallback);
+    // console.log('userec done')
+  // } catch (err) {
+  //   console.log('error searchinDB', err)
+  // }
 
-app.listen(80);
+} 
 
+function saveToDB(id, value, stage, isFinished) {
 
-// mongoose
-
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
- 
-
-async function saveToDB(id, value, stage, isFinished) {
-
-  await User.findOne({'id': id}, function (err, user) {
+  User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
         return console.log('null here', null);
@@ -299,43 +199,6 @@ async function saveToDB(id, value, stage, isFinished) {
           }
       });
       // console.log(user)
-    }      
-  });
-
-}
-
-async function searchInDB(id, value, stage, isFinished) {
-
-  await User.findOne({'id': id}, function (err, user) {
-    if (err) {
-      if(err.code == 11000) {
-        return console.log('null here', null);
-      }
-      else {
-        return console.log('error', null);
-      }
-    }
-    if (!user) {
-      let user = new User(
-        {
-          id: id,
-          value: 0,
-          stage: 0,
-          isFinished: false
-        }
-      );
-      user.save(function (err) {
-        if (err) {
-          return next(err);
-        }
-        console.log('saved if no user found')
-      });
-    } else {
-      console.log(user)
-      curValue = user.value;
-      stage = user.stage;
-      isFinished = user.isFinished;
-      console.log('searchInDB', curValue, stage, isFinished)
     }      
   });
 
