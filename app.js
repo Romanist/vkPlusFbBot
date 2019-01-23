@@ -37,6 +37,11 @@ bot.use(session.middleware())
 
 bot.on((ctx) => {
 
+  botBody(ctx)
+
+});
+
+async function botBody(ctx) {
   // stage = number of current question
   let stage = 0;
 
@@ -52,9 +57,46 @@ bot.on((ctx) => {
   let curUser = ctx.message.from_id;
 
   // console.log(curUser)
-  console.log('new message')
+  console.log(' ')
+  console.log('_________________NEW MESSAGE_________________')
+  console.log(' ')
   console.log('before search', curValue, stage, isFinished)
-  searchInDB(curUser, curValue, stage, isFinished)
+
+  let id = curUser;
+
+  await User.findOne({'id': curUser}, function (err, user) {
+    if (err) {
+      if(err.code == 11000) {
+        return console.log('null here', null);
+      }
+      else {
+        return console.log('error', null);
+      }
+    }
+    if (!user) {
+      let user = new User(
+        {
+          id: curUser,
+          value: 0,
+          stage: 0,
+          isFinished: false
+        }
+      );
+      user.save(function (err) {
+        if (err) {
+          return next(err);
+        }
+        console.log('saved if no user found')
+      });
+    } else {
+      // console.log(user)
+      curValue = user.value;
+      stage = user.stage;
+      isFinished = user.isFinished;
+      console.log('searchInDB', curValue, stage, isFinished)
+    }      
+  });
+
   console.log('after search', curValue, stage, isFinished)
 
   // vk bug with not dissapearing btns fix on hello-stage
@@ -64,22 +106,94 @@ bot.on((ctx) => {
   }
 
   if (isFinished) {
-  	ctx.reply('Your number of points is ' + curValue);
-  	isFinished = false;
-    saveToDB(curUser, curValue, stage)
-  	return false;
+    ctx.reply('Your number of points is ' + curValue);
+    isFinished = false;
+    await User.findOne({'id': id}, function (err, user) {
+      if (err) {
+        if(err.code == 11000) {
+          return console.log('null here', null);
+        }
+        else {
+          return console.log('error', null);
+        }
+      }
+      if (!user) {
+        let user = new User(
+          {
+            id: id,
+            value: curValue,
+            stage: stage,
+            isFinished: isFinished
+          }
+        );
+        user.save(function (err) {
+          if (err) {
+            return next(err);
+          }
+          console.log('saved existed user')
+        });
+      } else {
+        console.log('saveToDB', curValue, stage, isFinished)
+        user.value = curValue;
+        user.stage = stage;
+        user.isFinished = isFinished;
+        user.save(function (err) {
+            if(err) {
+                console.error('ERROR!', err);
+            }
+        });
+        // console.log(user)
+      }      
+    }); 
+    return false;
   }
 
   if (stage >= numbOfQuestions) {
-  	// all questions were asked
-  	ctx.reply('That is all for a while!', null, Markup
+    // all questions were asked
+    ctx.reply('That is all for a while!', null, Markup
     .keyboard([
         Markup.button('GET RESULTS!', 'primary') 
     ])
     .oneTime());
     isFinished = true;
-    saveToDB(curUser, curValue, stage)
-  	return false;
+    await User.findOne({'id': id}, function (err, user) {
+      if (err) {
+        if(err.code == 11000) {
+          return console.log('null here', null);
+        }
+        else {
+          return console.log('error', null);
+        }
+      }
+      if (!user) {
+        let user = new User(
+          {
+            id: id,
+            value: curValue,
+            stage: stage,
+            isFinished: isFinished
+          }
+        );
+        user.save(function (err) {
+          if (err) {
+            return next(err);
+          }
+          console.log('saved existed user')
+        });
+      } else {
+        console.log('saveToDB', curValue, stage, isFinished)
+        user.value = curValue;
+        user.stage = stage;
+        user.isFinished = isFinished;
+        user.save(function (err) {
+            if(err) {
+                console.error('ERROR!', err);
+            }
+        });
+        // console.log(user)
+      }      
+    }); 
+    return false;
   }
   // current question object
   let curStage = questObj[stage];
@@ -96,9 +210,44 @@ bot.on((ctx) => {
 
   stage++;
 
-  saveToDB(curUser, curValue, stage, isFinished)
-
-});
+  await User.findOne({'id': id}, function (err, user) {
+    if (err) {
+      if(err.code == 11000) {
+        return console.log('null here', null);
+      }
+      else {
+        return console.log('error', null);
+      }
+    }
+    if (!user) {
+      let user = new User(
+        {
+          id: id,
+          value: curValue,
+          stage: stage,
+          isFinished: isFinished
+        }
+      );
+      user.save(function (err) {
+        if (err) {
+          return next(err);
+        }
+        console.log('saved existed user')
+      });
+    } else {
+      console.log('saveToDB', curValue, stage, isFinished)
+      user.value = curValue;
+      user.stage = stage;
+      user.isFinished = isFinished;
+      user.save(function (err) {
+          if(err) {
+              console.error('ERROR!', err);
+          }
+      });
+      // console.log(user)
+    }      
+  });
+}
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
@@ -113,9 +262,9 @@ app.listen(80);
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
  
 
-function saveToDB(id, value, stage, isFinished) {
+async function saveToDB(id, value, stage, isFinished) {
 
-  User.findOne({'id': id}, function (err, user) {
+  await User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
         return console.log('null here', null);
@@ -155,9 +304,9 @@ function saveToDB(id, value, stage, isFinished) {
 
 }
 
-function searchInDB(id, value, stage, isFinished) {
+async function searchInDB(id, value, stage, isFinished) {
 
-  User.findOne({'id': id}, function (err, user) {
+  await User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
         return console.log('null here', null);
