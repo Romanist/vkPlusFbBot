@@ -1,0 +1,62 @@
+{
+  "name": "node-vk-bot-api",
+  "version": "2.4.3",
+  "description": "🤖 VK bot framework for Node.js, based on Bots Long Poll API and Callback API",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "mocha --exit --timeout 5000",
+    "eslint": "eslint .",
+    "eslint:fix": "eslint . --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/node-vk-bot-api/node-vk-bot-api.git"
+  },
+  "keywords": [
+    "vk",
+    "bots",
+    "api",
+    "vkontakte",
+    "bot",
+    "vk",
+    "api",
+    "longpoll",
+    "vk-api",
+    "vk-app",
+    "vk-bot",
+    "vkbot",
+    "vkontakte-sdk",
+    "vkontakte-api",
+    "vkontakte-client",
+    "vkapi",
+    "webhooks",
+    "callback api",
+    "callback"
+  ],
+  "author": "Mikhail Semin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/node-vk-bot-api/node-vk-bot-api/issues"
+  },
+  "homepage": "https://github.com/node-vk-bot-api/node-vk-bot-api#readme",
+  "dependencies": {
+    "axios": "^0.17.1",
+    "express": "^4.16.4",
+    "mongodb": "^3.1.12",
+    "mongoose": "^5.4.5"
+  },
+  "directories": {
+    "example": "examples"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@bifot/eslint-config": "^1.0.2",
+    "chai": "^4.2.0",
+    "eslint": "^5.9.0",
+    "eslint-config-airbnb-base": "^13.0.0",
+    "eslint-plugin-import": "^2.13.0",
+    "mocha": "^5.2.0"
+  }
+}

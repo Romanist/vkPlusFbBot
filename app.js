@@ -1,9 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const VkBot = require('../lib');
-const Markup = require('../lib/markup');
+const VkBot = require('./lib');
+const Markup = require('./lib/markup');
 const questObj = require('./questions');
-const Session = require('../lib/session');
+const Session = require('./lib/session');
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
@@ -117,7 +117,6 @@ function countAndSave(curUser, curValue, stage, isFinished, ctx) {
 
 function searchInDB(id, value, stage, isFinished, ctx) {
 
-  // try {
   let userec = User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
@@ -154,11 +153,6 @@ function searchInDB(id, value, stage, isFinished, ctx) {
   userec.then(function () {
     countAndSave(id, curValue, stage, isFinished, ctx);
   });
-
-    // console.log('userec done')
-  // } catch (err) {
-  //   console.log('error searchinDB', err)
-  // }
 
 } 
 
