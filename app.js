@@ -37,10 +37,10 @@ bot.use(session.middleware())
 bot.on((ctx) => {
 
   // stage = number of current question
-  let stage = 0;
+  let stage = -1;
 
-  // curValue = current number of point added for answering questions
-  let curValue = 0;
+  // value = current number of point added for answering questions
+  let value = 0;
 
   // bool check if questioning finished
   let isFinished = false;
@@ -48,15 +48,15 @@ bot.on((ctx) => {
   ctx.session.counter = ctx.session.counter || 0;
   ctx.session.counter++;
 
-  let curUser = ctx.message.from_id;
+  let id = ctx.message.from_id;
 
-  // console.log(curUser)
+  // console.log(id)
   console.log(' ')
   console.log('_________________NEW MESSAGE_________________')
   console.log(' ')
-  searchInDB(curUser, curValue, stage, isFinished, ctx)
+  searchInDB(id, value, stage, isFinished, ctx)
 
-  // countAndSave(curUser, curValue, stage, isFinished, ctx);
+  // countAndSave(id, value, stage, isFinished, ctx);
 
 });
 
@@ -71,17 +71,17 @@ app.listen(80);
 
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
-function countAndSave(curUser, curValue, stage, isFinished, ctx) {
+function countAndSave(id, value, stage, isFinished, ctx) {
   console.log('countAndSave start')
-  console.log(curUser, curValue, stage, isFinished)
+  console.log(id, value, stage, isFinished)
   // vk bug with not dissapearing btns fix on hello-stage
   if (stage) {
     var answVal = Number(ctx.message.payload) ? Number(ctx.message.payload) : 0;
-    curValue = curValue + answVal;
+    value = value + answVal;
   }
 
   if (isFinished) {
-    ctx.reply('Your number of points is ' + curValue);
+    ctx.reply('Your number of points is ' + value);
     isFinished = false;
     return false;
   }
@@ -94,25 +94,14 @@ function countAndSave(curUser, curValue, stage, isFinished, ctx) {
     ])
     .oneTime());
     isFinished = true;
-    saveToDB(curUser, curValue, stage, isFinished)
+    saveToDB(id, value, stage, isFinished)
     return false;
   }
-  // current question object
-  let curStage = questObj[stage];
 
-  ctx.reply(curStage.question, null, Markup
-    .keyboard([
-      [
-        Markup.button(curStage.answers.answer1.text, 'primary', 10),
-        Markup.button(curStage.answers.answer2.text, 'primary', 20),
-        Markup.button(curStage.answers.answer3.text, 'primary', 40) 
-      ]
-    ])
-    .oneTime());
 
   stage++;
 
-  saveToDB(curUser, curValue, stage, isFinished)
+  saveToDB(id, value, stage, isFinished, ctx)
 }
 
 function searchInDB(id, value, stage, isFinished, ctx) {
@@ -142,23 +131,35 @@ function searchInDB(id, value, stage, isFinished, ctx) {
         console.log('saved if no user found')
       });
     } else {
-      console.log(user)
-      curValue = user.value;
+      // console.log(user)
+      value = user.value;
       stage = user.stage;
       isFinished = user.isFinished;
-      console.log('searchInDB', curValue, stage, isFinished)
+      console.log('searchInDB', value, stage, isFinished)
     }      
   });
 
-  userec.then(function () {
-    countAndSave(id, curValue, stage, isFinished, ctx);
+  userec.then(result => {
+    console.log('search promise result', result)
+    countAndSave(id, value, stage, isFinished, ctx);
+  }, error => {
+    console.log('error', error)
+  });
+
+  // fix nodejs
+  process.on('unhandledRejection', (reason, promise) => {
+    console.log('Unhandled Rejection at:', reason.stack || reason)
+    // Recommended: send the information to sentry.io
+    // or whatever crash reporting service you use
   });
 
 } 
 
-function saveToDB(id, value, stage, isFinished) {
+function saveToDB(id, value, stage, isFinished, ctx) {
+  console.log('saveToDB start')
+  console.log(id, value, stage, isFinished)
 
-  User.findOne({'id': id}, function (err, user) {
+  let userec = User.findOne({'id': id}, function (err, user) {
     if (err) {
       if(err.code == 11000) {
         return console.log('null here', null);
@@ -194,6 +195,31 @@ function saveToDB(id, value, stage, isFinished) {
       });
       // console.log(user)
     }      
+  });
+
+  userec.then(result => {
+    console.log('save promise result', result)
+    // current question object
+    let curStage = questObj[stage];
+
+    ctx.reply(curStage.question, null, Markup
+      .keyboard([
+        [
+          Markup.button(curStage.answers.answer1.text, 'primary', 10),
+          Markup.button(curStage.answers.answer2.text, 'primary', 20),
+          Markup.button(curStage.answers.answer3.text, 'primary', 40) 
+        ]
+      ])
+      .oneTime());
+  }, error => {
+    console.log('error', error)
+  });
+
+  // fix nodejs
+  process.on('unhandledRejection', (reason, promise) => {
+    console.log('Unhandled Rejection at:', reason.stack || reason)
+    // Recommended: send the information to sentry.io
+    // or whatever crash reporting service you use
   });
 
 }
