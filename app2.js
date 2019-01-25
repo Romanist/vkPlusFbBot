@@ -18,8 +18,7 @@ let db = mongoose.connection;
 let UserSchema = new Schema({
     id: {type: String, required: true, max: 30},
     value: {type: Number, required: true},
-    step: {type: Number, required: true},
-    isFinished: {type: Boolean, required: true}
+    step: {type: Number, required: true}
 });
 let User = mongoose.model('User', UserSchema);
 
@@ -28,29 +27,48 @@ const bot = new VkBot({
   confirmation: 'd588faa9'
 });
 
-let isFinished = false;
+let numbOfQuestions = questObj.length;
 
 const scene = new Scene('meet',
   (ctx) => {
+    ctx.session.step = 0;
+    ctx.session.value = 0
     stepUp(ctx);
   },
   (ctx) => {
+    ctx.session.step = 1;
     stepUp(ctx);
   },
   (ctx) => {
+    ctx.session.step = 2;
     stepUp(ctx);
   },
   (ctx) => {
+    ctx.session.step = 3;
     stepUp(ctx);
   },
   (ctx) => {
+    ctx.session.step = 4;
     stepUp(ctx);
   },
   (ctx) => {
+    ctx.session.step = 5;
     stepUp(ctx);
   },
   (ctx) => {
-    ctx.scene.leave()
+    ctx.session.step = 6;
+    stepUp(ctx);
+  },
+  (ctx) => {
+    ctx.session.step = 7;
+    stepUp(ctx);
+  },
+  (ctx) => {
+    ctx.session.step = 8;
+    stepUp(ctx);
+  },
+  (ctx) => {
+    ctx.scene.leave();
   }
 )
 
@@ -60,6 +78,21 @@ async function stepUp(ctx) {
   let curValue = Number(ctx.message.payload) ? Number(ctx.message.payload) : 0;
   value = Number(value) + Number(curValue);
   ctx.session.value = value;
+
+  if (numbOfQuestions <= step) {
+    ctx.reply('Your number of points is ' + value, null, Markup
+    .keyboard([
+      [
+        Markup.button('начать заново', 'primary', 'renew')
+      ]
+    ])
+    .oneTime());
+    step = 0;
+    value = 0;
+    saveToDB(ctx, step, value)
+    ctx.scene.leave()
+    return false
+  }
 
   let curStep = questObj[step];
 
@@ -78,7 +111,51 @@ async function stepUp(ctx) {
   saveToDB(ctx, step, value)
 }
 
+async function renew(ctx) {
+  let contextScene = ctx.scene;
+  let id = ctx.message.from_id;
+  let promise = User.findOne({'id': id}, function (err, user) {
+    if (err) {
+      if(err.code == 11000) {
+        return console.log('null here', null);
+      }
+      else {
+        return console.log('error', null);
+      }
+    }
+    if (!user) {
+      let user = new User(
+        {
+          id: id,
+          value: 0,
+          step: 0
+        }
+      );
+      user.save(function (err) {
+        if (err) {
+          return next(err);
+        }
+      });
+    } else {
+      user.value = 0;
+      user.step = 0;
+      user.save(function (err) {
+          if(err) {
+              console.error('ERROR!', err);
+          }
+      });
+    }
+  }).exec();
+  promise.then(ctx => {
+    console.log('renewed')
+    contextScene.enter('meet', [0])
+  }, err => {
+    console.log('err', err)
+  });
+}
+
 async function saveToDB(ctx, step, value) {
+  console.log('presave', step, value)
   let contextScene = ctx.scene;
   let id = ctx.message.from_id;
   let promise = User.findOne({'id': id}, function (err, user) {
@@ -95,8 +172,7 @@ async function saveToDB(ctx, step, value) {
         {
           id: id,
           value: value,
-          step: step,
-          isFinished: isFinished
+          step: step
         }
       );
       user.save(function (err) {
@@ -107,18 +183,14 @@ async function saveToDB(ctx, step, value) {
     } else {
       user.value = value;
       user.step = step;
-      user.isFinished = isFinished;
       user.save(function (err) {
           if(err) {
               console.error('ERROR!', err);
           }
       });
-      // console.log(user)
     }
   }).exec();
   promise.then(ctx => {
-    console.log('PROMISERETURN ONSAVE')
-    // stepUp(ctx)
     contextScene.next()
   }, err => {
     console.log('err', err)
@@ -129,7 +201,6 @@ async function checkDB(ctx) {
   let id = ctx.message.from_id;
   let value;
   let step;
-  let isFinished;
   let contextScene = ctx.scene;
 
   let promise = User.findOne({'id': id}, async function (err, user) {
@@ -147,8 +218,7 @@ async function checkDB(ctx) {
           {
             id: id,
             value: 0,
-            step: 0,
-            isFinished: false
+            step: 0
           }
         );
         let saveUser = await user.save(function (err) {
@@ -160,20 +230,17 @@ async function checkDB(ctx) {
       } catch (err) {
         console.log('err', err)
       }
-    } else {
-      // console.log(user)
-      // value = user.value;
-      // step = user.step;
-      // isFinished = user.isFinished;
-      // console.log(' ')
-      // console.log('searchInDB', value, step, isFinished)
-      // console.log(' ')
-    }      
+    }   
   }).exec();
   promise.then(ctx => {
-    console.log('PROMISERETURN on checkDB')
-    // stepUp(ctx)
-    contextScene.enter('meet')
+    if (!ctx) {
+      var curStep = 0
+    } else curStep = ctx.step ? ctx.step : 0;
+    if (curStep) {
+      contextScene.enter('meet', [curStep])
+    } else {
+      contextScene.enter('meet')
+    }    
   }, err => {
     console.log('err', err)
   });
@@ -186,11 +253,14 @@ bot.use(session.middleware())
 bot.use(stage.middleware())
 
 bot.on((ctx) => {
+  if (ctx.message.payload == '"renew"') {
+    renew(ctx);
+    // return false;
+  }
   console.log(' ')
   console.log('_____________________________________')
   console.log(' ')
   checkDB(ctx);
-  // ctx.scene.enter('meet')
 })
 
 app.use(bodyParser.json());
