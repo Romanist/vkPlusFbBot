@@ -43,7 +43,9 @@
     "axios": "^0.17.1",
     "express": "^4.16.4",
     "mongodb": "^3.1.12",
-    "mongoose": "^5.4.5"
+    "mongoose": "^5.4.5",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2"
   },
   "directories": {
     "example": "examples"

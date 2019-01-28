@@ -7,6 +7,7 @@ const Session = require('./lib/session');
 const Scene = require('./lib/scene');
 const Stage = require('./lib/stage');
 const mongoose = require('mongoose');
+const request = require('request-promise')
 const Schema = mongoose.Schema;
 
 const app = express();
@@ -18,7 +19,9 @@ let db = mongoose.connection;
 let UserSchema = new Schema({
     id: {type: String, required: true, max: 30},
     value: {type: Number, required: true},
-    step: {type: Number, required: true}
+    step: {type: Number, required: true},
+    first_name: {type: String},
+    last_name: {type: String}
 });
 let User = mongoose.model('User', UserSchema);
 
@@ -78,6 +81,23 @@ async function stepUp(ctx) {
   let curValue = Number(ctx.message.payload) ? Number(ctx.message.payload) : 0;
   value = Number(value) + Number(curValue);
   ctx.session.value = value;
+  let curStepMin = questObj[step - 1];
+
+  console.log(step)
+  if ((!curValue) && (step > 0)) {
+    // ctx.reply('To hit buttons only!\nTry Again\n');
+    ctx.reply('To hit buttons only!\nTry Again\n\n' + curStepMin.question, null, Markup
+      .keyboard([
+        [
+          Markup.button(curStepMin.answers.answer1.text, 'primary', 10),
+          Markup.button(curStepMin.answers.answer2.text, 'primary', 20),
+          Markup.button(curStepMin.answers.answer3.text, 'primary', 40) 
+        ]
+      ])
+      .oneTime());
+    // ctx.scene.enter('meet', [step])
+    return false;
+  }
 
   if (numbOfQuestions <= step) {
     ctx.reply('Your number of points is ' + value, null, Markup
@@ -87,9 +107,6 @@ async function stepUp(ctx) {
       ]
     ])
     .oneTime());
-    step = 0;
-    value = 0;
-    ctx.session.boolCheck = true;
     saveToDB(ctx, step, value)
     ctx.scene.leave()
     return false
@@ -114,6 +131,7 @@ async function stepUp(ctx) {
 }
 
 async function renew(ctx) {
+  console.log('renew start!')
   let contextScene = ctx.scene;
   let id = ctx.message.from_id;
   let promise = User.findOne({'id': id}, function (err, user) {
@@ -150,7 +168,6 @@ async function renew(ctx) {
   }).exec();
   promise.then(ctx => {
     console.log('renewed')
-    ctx.session.boolCheck = false;
     contextScene.enter('meet', [0])
   }, err => {
     console.log('err', err)
@@ -216,6 +233,7 @@ async function checkDB(ctx) {
       }
     }
     if (!user) {
+      console.log('noUSER')
       try {
         let user = new User(
           {
@@ -224,12 +242,24 @@ async function checkDB(ctx) {
             step: 0
           }
         );
-        let saveUser = await user.save(function (err) {
-          if (err) {
-            return next(err);
-          }
-        });
-        await saveUser;
+        let options = {
+          method: 'GET',
+          uri: 'https://api.vk.com/method/users.get?user_id=' + id + '&v=5.52&access_token=f6f4f511b58e60eead7622ec875a7036ba82058346d3736a18c3c717f88a0d72667c7057c3e4ea6c492cd'
+        }
+        request(options)
+          .then(async function (context) {
+              user.first_name = context.response[0].first_name;
+              user.last_name = context.response[0].last_name;
+              let saveUser = await user.save(function (err) {
+                if (err) {
+                  return next(err);
+                }
+              });
+              await saveUser;
+          })
+          .catch(function (err) {
+              console.log('err ', err)
+          })      
       } catch (err) {
         console.log('err', err)
       }
@@ -256,12 +286,13 @@ bot.use(session.middleware())
 bot.use(stage.middleware())
 
 bot.on((ctx) => {
-  if ((ctx.message.payload == '"renew"') && (!ctx.session.boolCheck)) {
-    renew(ctx);
-  }
   console.log(' ')
   console.log('_____________________________________')
   console.log(' ')
+  if ((ctx.message.payload == '"renew"')) {
+    renew(ctx);
+    return false;
+  }
   checkDB(ctx);
 })
 
