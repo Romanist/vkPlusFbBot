@@ -32,7 +32,7 @@ let numbOfQuestions = questObj.length;
 const scene = new Scene('meet',
   (ctx) => {
     ctx.session.step = 0;
-    ctx.session.value = 0
+    ctx.session.value = 0;
     stepUp(ctx);
   },
   (ctx) => {
@@ -89,6 +89,7 @@ async function stepUp(ctx) {
     .oneTime());
     step = 0;
     value = 0;
+    ctx.session.boolCheck = true;
     saveToDB(ctx, step, value)
     ctx.scene.leave()
     return false
@@ -105,6 +106,7 @@ async function stepUp(ctx) {
       ]
     ])
     .oneTime());
+
   step++;
   ctx.session.step = step;
 
@@ -148,6 +150,7 @@ async function renew(ctx) {
   }).exec();
   promise.then(ctx => {
     console.log('renewed')
+    ctx.session.boolCheck = false;
     contextScene.enter('meet', [0])
   }, err => {
     console.log('err', err)
@@ -253,9 +256,8 @@ bot.use(session.middleware())
 bot.use(stage.middleware())
 
 bot.on((ctx) => {
-  if (ctx.message.payload == '"renew"') {
+  if ((ctx.message.payload == '"renew"') && (!ctx.session.boolCheck)) {
     renew(ctx);
-    // return false;
   }
   console.log(' ')
   console.log('_____________________________________')
